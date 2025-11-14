@@ -46,17 +46,17 @@
       <!-- Page body -->
       <div class="page-body">
         <div class="container-xl">
-          <!-- Filters Card -->
-          <div class="row mb-3">
-            <div class="col-12">
-              <div class="card">
+          <div class="row">
+            <!-- Filters Sidebar -->
+            <div class="col-lg-3 mb-3">
+              <div class="card sticky-top" style="top: 1rem;">
                 <div class="card-header">
                   <h3 class="card-title">
                     <i class="ti ti-filter me-2"></i>
                     Filters
                   </h3>
                   <div class="card-actions">
-                    <button class="btn btn-sm" @click="resetFilters">
+                    <button class="btn btn-outline" @click="resetFilters">
                       <i class="ti ti-refresh"></i>
                       Reset
                     </button>
@@ -73,13 +73,31 @@
                   />
                 </div>
               </div>
-            </div>
-          </div>
 
-          <!-- Products Table -->
-          <div class="row mb-3">
-            <div class="col-12">
-              <div class="card">
+              <!-- Stats Cards -->
+              <div class="row row-cards mt-3">
+                <div class="col-12">
+                  <div class="card">
+                    <div class="card-body">
+                      <div class="subheader">Total Products</div>
+                      <div class="h1 mb-0">{{ dbStats.count.toLocaleString() }}</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-12">
+                  <div class="card">
+                    <div class="card-body">
+                      <div class="subheader">Filtered Results</div>
+                      <div class="h1 mb-0">{{ totalCount.toLocaleString() }}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Products Main Content -->
+            <div class="col-lg-9">
+              <div class="card mb-3">
                 <div class="card-header">
                   <h3 class="card-title">
                     Products ({{ displayedProducts.length }} of {{ totalCount.toLocaleString() }})
@@ -87,7 +105,7 @@
                   <div class="card-actions">
                     <div class="d-flex align-items-center gap-2">
                       <button
-                          class="btn btn-sm btn-outline-primary"
+                          class="btn btn-outline-primary"
                           @click="previousPage"
                           :disabled="currentPage === 1"
                       >
@@ -98,7 +116,7 @@
                         Page {{ currentPage }} of {{ totalPages }}
                       </span>
                       <button
-                          class="btn btn-sm btn-outline-primary"
+                          class="btn btn-outline-primary"
                           @click="nextPage"
                           :disabled="currentPage >= totalPages"
                       >
@@ -108,26 +126,8 @@
                     </div>
                   </div>
                 </div>
-                <ProductList :products="displayedProducts"/>
-              </div>
-            </div>
-          </div>
-
-          <!-- Stats Cards -->
-          <div class="row row-deck row-cards mb-3">
-            <div class="col-sm-6 col-lg-6">
-              <div class="card">
                 <div class="card-body">
-                  <div class="subheader">Total Products</div>
-                  <div class="h1 mb-0">{{ dbStats.count.toLocaleString() }}</div>
-                </div>
-              </div>
-            </div>
-            <div class="col-sm-6 col-lg-6">
-              <div class="card">
-                <div class="card-body">
-                  <div class="subheader">Filtered Results</div>
-                  <div class="h1 mb-0">{{ totalCount.toLocaleString() }}</div>
+                  <ProductCardsList :products="displayedProducts"/>
                 </div>
               </div>
             </div>
@@ -163,8 +163,8 @@
 import {ref, onMounted} from 'vue';
 import {useDatabase} from './composables/useDatabase';
 import FilterBar from './components/FilterBar.vue';
-import ProductList from './components/ProductList.vue';
 import LoadingState from './components/LoadingState.vue';
+import ProductCardsList from "./components/ProductCardsList.vue";
 
 // Database composable
 const {
@@ -192,7 +192,7 @@ const filters = ref({
 const currentPage = ref(1);
 const totalPages = ref(0);
 const totalCount = ref(0);
-const itemsPerPage = 20;
+const itemsPerPage = 21;
 const availableBrands = ref([]);
 const availableCategories = ref([]);
 const availableStores = ref([]);
@@ -269,7 +269,19 @@ async function handleClearDatabase() {
 async function initializeApp() {
   await updateStats();
 
-  if (await hasData()) {
+  // If no data in memory, check cache and auto-load
+  if (!(await hasData())) {
+    try {
+      // Try to load from cache automatically
+      await loadData();
+      await loadFilterOptions();
+      await applyFilters();
+    } catch (error) {
+      // Cache doesn't exist or error loading - user needs to click "Load Database"
+      console.log('No cached database found, waiting for user to load');
+    }
+  } else {
+    // Data already in memory, just load UI
     await loadFilterOptions();
     await loadProducts();
   }

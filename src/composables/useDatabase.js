@@ -8,6 +8,11 @@ const loading = ref(false);
 const loadingMessage = ref('');
 const dbStats = ref({count: 0});
 
+// Cache configuration
+const CACHE_NAME = 'food-database-cache';
+const CACHE_VERSION = 1;
+const DB_CACHE_KEY = 'database-data';
+
 export function useDatabase() {
     /**
      * Initialize SQLite wasm module
@@ -29,6 +34,85 @@ export function useDatabase() {
     }
 
     /**
+     * Open IndexedDB for caching
+     */
+    async function openCacheDB() {
+        return new Promise((resolve, reject) => {
+            const request = indexedDB.open(CACHE_NAME, CACHE_VERSION);
+
+            request.onerror = () => reject(request.error);
+            request.onsuccess = () => resolve(request.result);
+
+            request.onupgradeneeded = (event) => {
+                const db = event.target.result;
+                if (!db.objectStoreNames.contains('databases')) {
+                    db.createObjectStore('databases');
+                }
+            };
+        });
+    }
+
+    /**
+     * Get cached database
+     */
+    async function getCachedDatabase() {
+        try {
+            const cacheDB = await openCacheDB();
+            return new Promise((resolve, reject) => {
+                const transaction = cacheDB.transaction(['databases'], 'readonly');
+                const store = transaction.objectStore('databases');
+                const request = store.get(DB_CACHE_KEY);
+
+                request.onerror = () => reject(request.error);
+                request.onsuccess = () => resolve(request.result);
+            });
+        } catch (error) {
+            console.error('Error getting cached database:', error);
+            return null;
+        }
+    }
+
+    /**
+     * Cache database
+     */
+    async function cacheDatabase(data) {
+        try {
+            const cacheDB = await openCacheDB();
+            return new Promise((resolve, reject) => {
+                const transaction = cacheDB.transaction(['databases'], 'readwrite');
+                const store = transaction.objectStore('databases');
+                const request = store.put(data, DB_CACHE_KEY);
+
+                request.onerror = () => reject(request.error);
+                request.onsuccess = () => resolve(true);
+            });
+        } catch (error) {
+            console.error('Error caching database:', error);
+            return false;
+        }
+    }
+
+    /**
+     * Clear database cache
+     */
+    async function clearDatabaseCache() {
+        try {
+            const cacheDB = await openCacheDB();
+            return new Promise((resolve, reject) => {
+                const transaction = cacheDB.transaction(['databases'], 'readwrite');
+                const store = transaction.objectStore('databases');
+                const request = store.delete(DB_CACHE_KEY);
+
+                request.onerror = () => reject(request.error);
+                request.onsuccess = () => resolve(true);
+            });
+        } catch (error) {
+            console.error('Error clearing cache:', error);
+            return false;
+        }
+    }
+
+    /**
      * Load database from static file server
      */
     async function loadData() {
@@ -39,38 +123,70 @@ export function useDatabase() {
             // Initialize SQLite if not already done
             await initSqlite();
 
-            loadingMessage.value = 'Downloading database...';
+            // Check for cached database first
+            loadingMessage.value = 'Checking cache...';
+            const cachedData = await getCachedDatabase();
 
-            // Fetch the database file from public directory
-            const response = await fetch('/data.sqlite');
-            if (!response.ok) {
-                throw new Error(`Failed to fetch database: ${response.statusText}`);
+            let uint8Array;
+
+            if (cachedData) {
+                console.log('Loading database from cache');
+                loadingMessage.value = 'Loading from cache...';
+                uint8Array = new Uint8Array(cachedData);
+            } else {
+                console.log('Downloading database from server');
+                loadingMessage.value = 'Downloading database...';
+
+                // Fetch the database file from public directory
+                const response = await fetch('/data.sqlite');
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch database: ${response.statusText}`);
+                }
+
+                const arrayBuffer = await response.arrayBuffer();
+                uint8Array = new Uint8Array(arrayBuffer);
+
+                // Cache the downloaded database
+                loadingMessage.value = 'Caching database...';
+                await cacheDatabase(arrayBuffer);
+                console.log('Database cached successfully');
             }
-
-            const arrayBuffer = await response.arrayBuffer();
-            const uint8Array = new Uint8Array(arrayBuffer);
 
             loadingMessage.value = 'Loading database...';
 
             // Close existing database if any
             if (db) {
                 db.close();
+                db = null;
             }
 
-            // Create database from downloaded file
-            const p = sqlite3.wasm.allocFromTypedArray(uint8Array);
-            db = new sqlite3.oo1.DB();
+            // Create in-memory database
+            db = new sqlite3.oo1.DB(':memory:');
 
+            // Use the lower-level API to load the data
+            const pMem = sqlite3.wasm.alloc(uint8Array.length);
+
+            // Copy data in chunks to avoid detached buffer issues
+            const chunkSize = 1024 * 1024; // 1MB chunks
+            for (let i = 0; i < uint8Array.length; i += chunkSize) {
+                const end = Math.min(i + chunkSize, uint8Array.length);
+                const chunk = uint8Array.slice(i, end);
+                sqlite3.wasm.heap8().set(chunk, pMem + i);
+            }
+
+            // Deserialize the database
             const rc = sqlite3.capi.sqlite3_deserialize(
                 db.pointer,
                 'main',
-                p,
-                uint8Array.byteLength,
-                uint8Array.byteLength,
-                sqlite3.capi.SQLITE_DESERIALIZE_FREEONCLOSE
+                pMem,
+                uint8Array.length,
+                uint8Array.length,
+                sqlite3.capi.SQLITE_DESERIALIZE_FREEONCLOSE |
+                sqlite3.capi.SQLITE_DESERIALIZE_RESIZEABLE
             );
 
             if (rc !== 0) {
+                sqlite3.wasm.dealloc(pMem);
                 throw new Error(`Failed to deserialize database: ${sqlite3.capi.sqlite3_errstr(rc)}`);
             }
 
@@ -117,7 +233,7 @@ export function useDatabase() {
     /**
      * Query products with filters and pagination
      */
-    async function queryProducts(filters, page = 1, limit = 20) {
+    async function queryProducts(filters, page = 1, limit = 21) {
         if (!db) {
             return {products: [], totalCount: 0, totalPages: 0};
         }
@@ -211,6 +327,7 @@ export function useDatabase() {
                     f.id,
                     f.name,
                     f.url,
+                    f.image_url,
                     f.brands,
                     f.categories,
                     f.stores,
@@ -380,16 +497,18 @@ export function useDatabase() {
     }
 
     /**
-     * Clear database
+     * Clear database and cache
      */
     async function clearDatabase() {
         if (db) {
             db.close();
             db = null;
             dbStats.value = {count: 0};
-            return true;
         }
-        return false;
+        // Also clear the cache
+        await clearDatabaseCache();
+        console.log('Database and cache cleared');
+        return true;
     }
 
     return {
@@ -398,6 +517,7 @@ export function useDatabase() {
         dbStats,
         loadData,
         clearDatabase,
+        clearDatabaseCache,
         updateStats,
         queryProducts,
         getUniqueBrands,
