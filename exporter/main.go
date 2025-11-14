@@ -18,9 +18,9 @@ import (
 )
 
 type row struct {
-	name, url, brands, categories, stores sql.NullString
-	fat, protein, carbs, energy           sql.NullFloat64
-	proteinFatIndex                       sql.NullFloat64
+	name, url, imageUrl, brands, categories, stores sql.NullString
+	fat, protein, carbs, energy                     sql.NullFloat64
+	proteinFatIndex                                 sql.NullFloat64
 }
 
 func main() {
@@ -71,6 +71,7 @@ CREATE TABLE food (
 	id INTEGER PRIMARY KEY AUTOINCREMENT,
 	name TEXT,
 	url TEXT,
+	image_url TEXT,
 	brands JSON,
 	categories JSON,
 	stores JSON,
@@ -111,7 +112,7 @@ CREATE TABLE food (
 
 	// Required columns
 	requiredCols := []string{
-		"product_name", "url", "brands", "categories", "stores",
+		"product_name", "url", "image_url", "brands", "categories", "stores",
 		"countries_en", "completeness",
 		"fat_100g", "proteins_100g", "carbohydrates_100g", "energy-kcal_100g",
 	}
@@ -155,6 +156,7 @@ CREATE TABLE food (
 		}
 
 		url := getColumn(record, colIndex, "url")
+		imageUrl := getColumn(record, colIndex, "image_url")
 		brands := getColumn(record, colIndex, "brands")
 		categories := getColumn(record, colIndex, "categories")
 		stores := getColumn(record, colIndex, "stores")
@@ -196,6 +198,7 @@ CREATE TABLE food (
 		batch = append(batch, row{
 			name:            toNullString(name),
 			url:             toNullString(url),
+			imageUrl:        toNullString(imageUrl),
 			brands:          brandsJSON,
 			categories:      categoriesJSON,
 			stores:          storesJSON,
@@ -420,14 +423,14 @@ func buildInsertSQL(n int) string {
 		return ""
 	}
 
-	const perRow = `(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+	const perRow = `(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 	vals := make([]string, n)
 
 	for i := 0; i < n; i++ {
 		vals[i] = perRow
 	}
 
-	return `INSERT INTO food (name, url, brands, categories, stores, fat, protein, carbs, energy, protein_fat_index) VALUES ` + strings.Join(vals, ",") + `;`
+	return `INSERT INTO food (name, url, image_url, brands, categories, stores, fat, protein, carbs, energy, protein_fat_index) VALUES ` + strings.Join(vals, ",") + `;`
 }
 
 func valString(ns sql.NullString) interface{} {
@@ -473,6 +476,7 @@ func flushRows(db *sql.DB, rows []row) error {
 			args = append(args,
 				valString(r.name),
 				valString(r.url),
+				valString(r.imageUrl),
 				valString(r.brands),
 				valString(r.categories),
 				valString(r.stores),
