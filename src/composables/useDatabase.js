@@ -248,7 +248,7 @@ export function useDatabase() {
             if (filters.search && filters.search.trim()) {
                 fromClause = `
                     FROM food_fts fts
-                    JOIN food f ON f.id = fts.id
+                    JOIN food f ON f.id = fts.rowid
                 `;
                 whereConditions.push('food_fts MATCH :search');
                 params[':search'] = filters.search.trim() + '*';
