@@ -138,22 +138,18 @@ CREATE TABLE food (
 		}
 		lineNum++
 
-		// Apply filters
 		countriesEn := getColumn(record, colIndex, "countries_en")
-		if countriesEn != "Germany" {
+		if !strings.Contains(countriesEn, "Germany") {
 			continue
 		}
 
 		completeness, err := strconv.ParseFloat(getColumn(record, colIndex, "completeness"), 64)
-		if err != nil || completeness <= 0.8 {
+		if err != nil || completeness < 0.8 {
 			continue
 		}
 
 		// Get required fields
 		name := getColumn(record, colIndex, "product_name")
-		if name == "" {
-			continue
-		}
 
 		url := getColumn(record, colIndex, "url")
 		imageUrl := getColumn(record, colIndex, "image_url")
@@ -161,25 +157,28 @@ CREATE TABLE food (
 		categories := getColumn(record, colIndex, "categories")
 		stores := getColumn(record, colIndex, "stores")
 
-		// Parse numeric fields
+		if name == "" {
+			name = brands
+		}
+
 		fat, err := parseFloat(getColumn(record, colIndex, "fat_100g"))
 		if err != nil || !fat.Valid {
-			continue
+			fat = sql.NullFloat64{Valid: true, Float64: 0}
 		}
 
 		protein, err := parseFloat(getColumn(record, colIndex, "proteins_100g"))
 		if err != nil || !protein.Valid {
-			continue
+			protein = sql.NullFloat64{Valid: true, Float64: 0}
 		}
 
 		carbs, err := parseFloat(getColumn(record, colIndex, "carbohydrates_100g"))
 		if err != nil || !carbs.Valid {
-			continue
+			carbs = sql.NullFloat64{Valid: true, Float64: 0}
 		}
 
 		energy, err := parseFloat(getColumn(record, colIndex, "energy-kcal_100g"))
 		if err != nil || !energy.Valid {
-			continue
+			energy = sql.NullFloat64{Valid: true, Float64: 0}
 		}
 
 		// Calculate protein/fat index
