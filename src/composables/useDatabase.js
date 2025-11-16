@@ -117,7 +117,7 @@ export function useDatabase() {
      */
     async function loadData() {
         loading.value = true;
-        loadingMessage.value = 'Initializing SQLite...';
+        loadingMessage.value = 'Initializing database...';
 
         try {
             // Initialize SQLite if not already done
@@ -323,10 +323,13 @@ export function useDatabase() {
 
             // Build ORDER BY clause
             let orderByClause;
-            if (sort && sort.field && sort.direction) {
-                // Use custom sort
-                const direction = sort.direction.toUpperCase();
-                orderByClause = `ORDER BY f.${sort.field} ${direction} NULLS LAST`;
+            if (sort && Array.isArray(sort) && sort.length > 0) {
+                // Use custom multi-field sort
+                const orderByClauses = sort.map(s => {
+                    const direction = s.direction.toUpperCase();
+                    return `f.${s.field} ${direction} NULLS LAST`;
+                });
+                orderByClause = `ORDER BY ${orderByClauses.join(', ')}`;
             } else if (filters.search && filters.search.trim()) {
                 // Use FTS rank when searching
                 orderByClause = 'ORDER BY fts.rank';
@@ -355,6 +358,8 @@ export function useDatabase() {
                 ${orderByClause}
                 LIMIT :limit OFFSET :offset
             `;
+
+            console.log(dataSql);
 
             const products = db.exec({
                 sql: dataSql,

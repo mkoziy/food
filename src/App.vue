@@ -191,10 +191,7 @@ const filters = ref({
   categories: [],
   stores: [],
 });
-const sort = ref({
-  field: null,
-  direction: null
-});
+const sort = ref([]);
 const currentPage = ref(1);
 const totalPages = ref(0);
 const totalCount = ref(0);
@@ -222,7 +219,7 @@ async function applyFilters(newFilters) {
 
 async function applySort(newSort) {
   if (newSort) {
-    sort.value = {...newSort};
+    sort.value = [...newSort];
   }
 
   // Reset to first page when sort changes
@@ -245,10 +242,7 @@ function resetFilters() {
     categories: [],
     stores: []
   };
-  sort.value = {
-    field: null,
-    direction: null
-  };
+  sort.value = [];
   applyFilters();
 }
 

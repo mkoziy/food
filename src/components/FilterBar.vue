@@ -91,7 +91,7 @@
             v-for="field in sortFields"
             :key="field.key"
             class="btn btn-outline w-100 d-flex justify-content-between align-items-center"
-            :class="{'active': localSort.field === field.key}"
+            :class="{'active': getSortState(field.key) !== null}"
             @click="toggleSort(field.key)"
         >
           <span>
@@ -99,11 +99,11 @@
             {{ field.label }}
           </span>
           <i
-              v-if="localSort.field === field.key && localSort.direction === 'asc'"
+              v-if="getSortState(field.key) === 'asc'"
               class="ti ti-arrow-up"
           ></i>
           <i
-              v-else-if="localSort.field === field.key && localSort.direction === 'desc'"
+              v-else-if="getSortState(field.key) === 'desc'"
               class="ti ti-arrow-down"
           ></i>
         </button>
@@ -136,8 +136,8 @@ const props = defineProps({
     default: () => []
   },
   sort: {
-    type: Object,
-    default: () => ({ field: null, direction: null })
+    type: Array,
+    default: () => []
   }
 });
 
@@ -146,7 +146,7 @@ const emit = defineEmits(['update:filters', 'update:sort', 'reset']);
 const {getUniqueBrands, getUniqueCategories, getUniqueStores} = useDatabase();
 
 const localFilters = ref({...props.filters});
-const localSort = ref({...props.sort});
+const localSort = ref([...props.sort]);
 const brandsOptions = ref([...props.availableBrands]);
 const categoriesOptions = ref([...props.availableCategories]);
 const storesOptions = ref([...props.availableStores]);
@@ -167,7 +167,7 @@ watch(() => props.filters, (newFilters) => {
 }, {deep: true});
 
 watch(() => props.sort, (newSort) => {
-  localSort.value = {...newSort};
+  localSort.value = [...newSort];
 }, {deep: true});
 
 watch(() => props.availableBrands, (newBrands) => {
@@ -187,19 +187,31 @@ function emitFilters() {
 }
 
 function toggleSort(field) {
-  // Cycle through: none → asc → desc → none
-  if (localSort.value.field !== field) {
-    // New field selected, start with ascending
-    localSort.value = { field, direction: 'asc' };
-  } else if (localSort.value.direction === 'asc') {
-    // Switch to descending
-    localSort.value = { field, direction: 'desc' };
+  // Find if this field already has a sort
+  const existingIndex = localSort.value.findIndex(s => s.field === field);
+
+  if (existingIndex === -1) {
+    // Field not in sort, add it with ascending
+    localSort.value = [...localSort.value, { field, direction: 'asc' }];
   } else {
-    // Clear sorting
-    localSort.value = { field: null, direction: null };
+    const existing = localSort.value[existingIndex];
+    if (existing.direction === 'asc') {
+      // Change to descending
+      localSort.value = localSort.value.map((s, i) =>
+        i === existingIndex ? { field, direction: 'desc' } : s
+      );
+    } else {
+      // Remove from sort
+      localSort.value = localSort.value.filter((s, i) => i !== existingIndex);
+    }
   }
 
-  emit('update:sort', {...localSort.value});
+  emit('update:sort', [...localSort.value]);
+}
+
+function getSortState(field) {
+  const sort = localSort.value.find(s => s.field === field);
+  return sort ? sort.direction : null;
 }
 
 // Debounce helper
