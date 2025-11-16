@@ -359,8 +359,6 @@ export function useDatabase() {
                 LIMIT :limit OFFSET :offset
             `;
 
-            console.log(dataSql);
-
             const products = db.exec({
                 sql: dataSql,
                 bind: {...params, ':limit': limit, ':offset': offset},
@@ -490,7 +488,6 @@ export function useDatabase() {
                     SELECT id, store
                     FROM stores
                     ORDER BY store ASC
-                    LIMIT 100
                 `;
             }
 

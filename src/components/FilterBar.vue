@@ -78,13 +78,29 @@
           @update:modelValue="emitFilters"
           @search-change="searchStores"
       />
+
+      <!-- Store Presets -->
+      <div class="mt-2">
+        <small class="text-muted d-block mb-1">Quick Select</small>
+        <div class="d-flex flex-wrap gap-1">
+          <button
+              v-for="preset in storePresets"
+              :key="preset"
+              class="btn btn-sm"
+              :class="isStoreSelected(preset) ? 'btn-primary' : 'btn-outline-secondary'"
+              @click="toggleStorePreset(preset)"
+          >
+            {{ preset }}
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- Sorting Section -->
-    <div class="col-md-12">
+    <div class="col-md-12 mt-5">
       <label class="form-label">
         <i class="ti ti-sort-ascending me-1"></i>
-        Sort By
+        Sort By (order matters)
       </label>
       <div class="d-flex flex-column gap-2">
         <button
@@ -98,14 +114,22 @@
             <i :class="field.icon" class="me-1"></i>
             {{ field.label }}
           </span>
-          <i
-              v-if="getSortState(field.key) === 'asc'"
-              class="ti ti-arrow-up"
-          ></i>
-          <i
-              v-else-if="getSortState(field.key) === 'desc'"
-              class="ti ti-arrow-down"
-          ></i>
+          <span class="d-flex align-items-center gap-1">
+            <span
+                v-if="getSortPosition(field.key) !== null"
+                class="badge"
+            >
+              {{ getSortPosition(field.key) }}
+            </span>
+            <i
+                v-if="getSortState(field.key) === 'asc'"
+                class="ti ti-arrow-up"
+            ></i>
+            <i
+                v-else-if="getSortState(field.key) === 'desc'"
+                class="ti ti-arrow-down"
+            ></i>
+          </span>
         </button>
       </div>
     </div>
@@ -117,6 +141,7 @@ import {ref, watch} from 'vue';
 import Multiselect from 'vue-multiselect';
 import 'vue-multiselect/dist/vue-multiselect.css';
 import {useDatabase} from '../composables/useDatabase';
+import storePresetsConfig from '../storePresets.json';
 
 const props = defineProps({
   filters: {
@@ -156,11 +181,14 @@ const isLoadingStores = ref(false);
 
 // Sort fields configuration
 const sortFields = [
-  { key: 'fat', label: 'Fat', icon: 'ti ti-droplet' },
-  { key: 'carbs', label: 'Carbs', icon: 'ti ti-grain' },
-  { key: 'protein', label: 'Protein', icon: 'ti ti-barbell' },
-  { key: 'protein_fat_index', label: 'Protein/Fat Index', icon: 'ti ti-chart-line' }
+  {key: 'fat', label: 'Fat', icon: 'ti ti-droplet'},
+  {key: 'carbs', label: 'Carbs', icon: 'ti ti-grain'},
+  {key: 'protein', label: 'Protein', icon: 'ti ti-barbell'},
+  {key: 'protein_fat_index', label: 'Protein/Fat Index', icon: 'ti ti-chart-line'}
 ];
+
+// Store presets loaded from JSON configuration (simple array of store names)
+const storePresets = storePresetsConfig;
 
 watch(() => props.filters, (newFilters) => {
   localFilters.value = {...newFilters};
@@ -192,13 +220,13 @@ function toggleSort(field) {
 
   if (existingIndex === -1) {
     // Field not in sort, add it with ascending
-    localSort.value = [...localSort.value, { field, direction: 'asc' }];
+    localSort.value = [...localSort.value, {field, direction: 'asc'}];
   } else {
     const existing = localSort.value[existingIndex];
     if (existing.direction === 'asc') {
       // Change to descending
       localSort.value = localSort.value.map((s, i) =>
-        i === existingIndex ? { field, direction: 'desc' } : s
+          i === existingIndex ? {field, direction: 'desc'} : s
       );
     } else {
       // Remove from sort
@@ -212,6 +240,57 @@ function toggleSort(field) {
 function getSortState(field) {
   const sort = localSort.value.find(s => s.field === field);
   return sort ? sort.direction : null;
+}
+
+function getSortPosition(field) {
+  const index = localSort.value.findIndex(s => s.field === field);
+  return index !== -1 ? index + 1 : null;
+}
+
+function isStoreSelected(presetName) {
+  if (!localFilters.value.stores || localFilters.value.stores.length === 0) {
+    return false;
+  }
+
+  // Check if any selected store contains the preset name
+  return localFilters.value.stores.some(s => {
+    const store = typeof s === 'object' ? s.store : s;
+    return store && store.toLowerCase().includes(presetName.toLowerCase());
+  });
+}
+
+function toggleStorePreset(presetName) {
+  const availablePresetStores = storesOptions.value.filter(option =>
+      option.store && option.store.toLowerCase().includes(presetName.toLowerCase())
+  );
+
+  if (availablePresetStores.length === 0) {
+    return;
+  }
+
+  const hasAnySelected = localFilters.value.stores.some(s => {
+    const store = typeof s === 'object' ? s.store : s;
+    return store && store.toLowerCase().includes(presetName.toLowerCase());
+  });
+
+  if (hasAnySelected) {
+    localFilters.value.stores = localFilters.value.stores.filter(s => {
+      const store = typeof s === 'object' ? s.store : s;
+      return !(store && store.toLowerCase().includes(presetName.toLowerCase()));
+    });
+  } else {
+    const currentStoreIds = new Set(
+        localFilters.value.stores.map(s => (typeof s === 'object' ? s.id : s))
+    );
+
+    const storesToAdd = availablePresetStores.filter(
+        store => !currentStoreIds.has(store.id)
+    );
+
+    localFilters.value.stores = [...localFilters.value.stores, ...storesToAdd];
+  }
+
+  emitFilters();
 }
 
 // Debounce helper

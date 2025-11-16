@@ -183,6 +183,9 @@ const {
   hasData
 } = useDatabase();
 
+// LocalStorage keys
+const STORAGE_KEY_SORT = 'food-app-sort';
+
 // State
 const displayedProducts = ref([]);
 const filters = ref({
@@ -191,7 +194,19 @@ const filters = ref({
   categories: [],
   stores: [],
 });
-const sort = ref([]);
+
+// Load saved sort from localStorage
+function loadSavedSort() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY_SORT);
+    return saved ? JSON.parse(saved) : [];
+  } catch (error) {
+    console.error('Error loading saved sort:', error);
+    return [];
+  }
+}
+
+const sort = ref(loadSavedSort());
 const currentPage = ref(1);
 const totalPages = ref(0);
 const totalCount = ref(0);
@@ -220,6 +235,12 @@ async function applyFilters(newFilters) {
 async function applySort(newSort) {
   if (newSort) {
     sort.value = [...newSort];
+    // Save sort to localStorage
+    try {
+      localStorage.setItem(STORAGE_KEY_SORT, JSON.stringify(newSort));
+    } catch (error) {
+      console.error('Error saving sort:', error);
+    }
   }
 
   // Reset to first page when sort changes
@@ -243,6 +264,12 @@ function resetFilters() {
     stores: []
   };
   sort.value = [];
+  // Clear saved sort from localStorage
+  try {
+    localStorage.removeItem(STORAGE_KEY_SORT);
+  } catch (error) {
+    console.error('Error clearing saved sort:', error);
+  }
   applyFilters();
 }
 
