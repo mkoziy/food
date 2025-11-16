@@ -43,7 +43,7 @@
                   <small class="text-muted mb-1">
                     <i class="ti ti-flame me-1"></i>Energy
                   </small>
-                  <strong v-if="product.energy" class="text-body">
+                  <strong v-if="product.energy" class="text-body values">
                     {{ Math.round(product.energy) }} kcal
                   </strong>
                   <span v-else class="text-muted">-</span>
@@ -55,7 +55,7 @@
                   <small class="text-muted mb-1">
                     <i class="ti ti-chart-line me-1"></i>P/F Index
                   </small>
-                  <strong v-if="product.protein_fat_index" class="text-body">
+                  <strong v-if="product.protein_fat_index" class="text-body values">
                     {{ Number(product.protein_fat_index).toFixed(2) }}
                   </strong>
                   <span v-else class="text-muted">-</span>
@@ -65,7 +65,7 @@
               <div class="col-4">
                 <div class="d-flex flex-column">
                   <small class="text-muted mb-1">Fat</small>
-                  <strong v-if="product.fat" class="text-body">{{ product.fat }} g</strong>
+                  <strong v-if="product.fat" class="text-body values">{{ product.fat }} g</strong>
                   <span v-else class="text-muted">-</span>
                 </div>
               </div>
@@ -73,7 +73,7 @@
               <div class="col-4">
                 <div class="d-flex flex-column">
                   <small class="text-muted mb-1">Carbs</small>
-                  <strong v-if="product.carbs" class="text-body">{{ product.carbs }} g</strong>
+                  <strong v-if="product.carbs" class="text-body values">{{ product.carbs }} g</strong>
                   <span v-else class="text-muted">-</span>
                 </div>
               </div>
@@ -81,7 +81,7 @@
               <div class="col-4">
                 <div class="d-flex flex-column">
                   <small class="text-muted mb-1">Protein</small>
-                  <strong v-if="product.protein" class="text-body">{{ product.protein }} g</strong>
+                  <strong v-if="product.protein" class="text-body values">{{ product.protein }} g</strong>
                   <span v-else class="text-muted">-</span>
                 </div>
               </div>
@@ -185,6 +185,10 @@ function splitJsonArrayFromString(arr) {
 </script>
 
 <style scoped>
+.values {
+  font-size: large;
+}
+
 .product-cards-list {
   min-height: 200px;
 }
