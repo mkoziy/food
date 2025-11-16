@@ -233,7 +233,7 @@ export function useDatabase() {
     /**
      * Query products with filters and pagination
      */
-    async function queryProducts(filters, page = 1, limit = 21) {
+    async function queryProducts(filters, page = 1, limit = 21, sort = null) {
         if (!db) {
             return {products: [], totalCount: 0, totalPages: 0};
         }
@@ -321,6 +321,20 @@ export function useDatabase() {
                 ? countResult[0].count
                 : 0;
 
+            // Build ORDER BY clause
+            let orderByClause;
+            if (sort && sort.field && sort.direction) {
+                // Use custom sort
+                const direction = sort.direction.toUpperCase();
+                orderByClause = `ORDER BY f.${sort.field} ${direction} NULLS LAST`;
+            } else if (filters.search && filters.search.trim()) {
+                // Use FTS rank when searching
+                orderByClause = 'ORDER BY fts.rank';
+            } else {
+                // Default to name
+                orderByClause = 'ORDER BY f.name';
+            }
+
             // Get paginated results
             const dataSql = `
                 SELECT
@@ -338,7 +352,7 @@ export function useDatabase() {
                     f.protein_fat_index
                 ${fromClause}
                 ${whereClause}
-                ${filters.search && filters.search.trim() ? 'ORDER BY fts.rank' : 'ORDER BY f.name'}
+                ${orderByClause}
                 LIMIT :limit OFFSET :offset
             `;
 

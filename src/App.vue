@@ -65,10 +65,12 @@
                 <div class="card-body">
                   <FilterBar
                       :filters="filters"
+                      :sort="sort"
                       :available-brands="availableBrands"
                       :available-categories="availableCategories"
                       :available-stores="availableStores"
                       @update:filters="applyFilters"
+                      @update:sort="applySort"
                       @reset="resetFilters"
                   />
                 </div>
@@ -189,6 +191,10 @@ const filters = ref({
   categories: [],
   stores: [],
 });
+const sort = ref({
+  field: null,
+  direction: null
+});
 const currentPage = ref(1);
 const totalPages = ref(0);
 const totalCount = ref(0);
@@ -214,8 +220,18 @@ async function applyFilters(newFilters) {
   await loadProducts();
 }
 
+async function applySort(newSort) {
+  if (newSort) {
+    sort.value = {...newSort};
+  }
+
+  // Reset to first page when sort changes
+  currentPage.value = 1;
+  await loadProducts();
+}
+
 async function loadProducts() {
-  const result = await queryProducts(filters.value, currentPage.value, itemsPerPage);
+  const result = await queryProducts(filters.value, currentPage.value, itemsPerPage, sort.value);
 
   displayedProducts.value = result.products;
   totalCount.value = result.totalCount;
@@ -226,7 +242,12 @@ function resetFilters() {
   filters.value = {
     search: '',
     brands: [],
-    categories: []
+    categories: [],
+    stores: []
+  };
+  sort.value = {
+    field: null,
+    direction: null
   };
   applyFilters();
 }

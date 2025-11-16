@@ -79,6 +79,36 @@
           @search-change="searchStores"
       />
     </div>
+
+    <!-- Sorting Section -->
+    <div class="col-md-12">
+      <label class="form-label">
+        <i class="ti ti-sort-ascending me-1"></i>
+        Sort By
+      </label>
+      <div class="d-flex flex-column gap-2">
+        <button
+            v-for="field in sortFields"
+            :key="field.key"
+            class="btn btn-outline w-100 d-flex justify-content-between align-items-center"
+            :class="{'active': localSort.field === field.key}"
+            @click="toggleSort(field.key)"
+        >
+          <span>
+            <i :class="field.icon" class="me-1"></i>
+            {{ field.label }}
+          </span>
+          <i
+              v-if="localSort.field === field.key && localSort.direction === 'asc'"
+              class="ti ti-arrow-up"
+          ></i>
+          <i
+              v-else-if="localSort.field === field.key && localSort.direction === 'desc'"
+              class="ti ti-arrow-down"
+          ></i>
+        </button>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -104,14 +134,19 @@ const props = defineProps({
   availableStores: {
     type: Array,
     default: () => []
+  },
+  sort: {
+    type: Object,
+    default: () => ({ field: null, direction: null })
   }
 });
 
-const emit = defineEmits(['update:filters', 'reset']);
+const emit = defineEmits(['update:filters', 'update:sort', 'reset']);
 
 const {getUniqueBrands, getUniqueCategories, getUniqueStores} = useDatabase();
 
 const localFilters = ref({...props.filters});
+const localSort = ref({...props.sort});
 const brandsOptions = ref([...props.availableBrands]);
 const categoriesOptions = ref([...props.availableCategories]);
 const storesOptions = ref([...props.availableStores]);
@@ -119,8 +154,20 @@ const isLoadingBrands = ref(false);
 const isLoadingCategories = ref(false);
 const isLoadingStores = ref(false);
 
+// Sort fields configuration
+const sortFields = [
+  { key: 'fat', label: 'Fat', icon: 'ti ti-droplet' },
+  { key: 'carbs', label: 'Carbs', icon: 'ti ti-grain' },
+  { key: 'protein', label: 'Protein', icon: 'ti ti-barbell' },
+  { key: 'protein_fat_index', label: 'Protein/Fat Index', icon: 'ti ti-chart-line' }
+];
+
 watch(() => props.filters, (newFilters) => {
   localFilters.value = {...newFilters};
+}, {deep: true});
+
+watch(() => props.sort, (newSort) => {
+  localSort.value = {...newSort};
 }, {deep: true});
 
 watch(() => props.availableBrands, (newBrands) => {
@@ -137,6 +184,22 @@ watch(() => props.availableStores, (newStores) => {
 
 function emitFilters() {
   emit('update:filters', {...localFilters.value});
+}
+
+function toggleSort(field) {
+  // Cycle through: none → asc → desc → none
+  if (localSort.value.field !== field) {
+    // New field selected, start with ascending
+    localSort.value = { field, direction: 'asc' };
+  } else if (localSort.value.direction === 'asc') {
+    // Switch to descending
+    localSort.value = { field, direction: 'desc' };
+  } else {
+    // Clear sorting
+    localSort.value = { field: null, direction: null };
+  }
+
+  emit('update:sort', {...localSort.value});
 }
 
 // Debounce helper
