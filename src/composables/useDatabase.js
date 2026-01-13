@@ -1,5 +1,4 @@
 import {ref} from 'vue';
-import sqlite3InitModule from '@sqlite.org/sqlite-wasm';
 
 // Shared state across component instances
 let db = null;
@@ -21,9 +20,16 @@ export function useDatabase() {
         if (sqlite3) return sqlite3;
 
         try {
+            // Dynamically import SQLite module from public directory
+            const sqlite3InitModule = await import('/sqlite-wasm/sqlite3.mjs').then(m => m.default);
+
             sqlite3 = await sqlite3InitModule({
                 print: console.log,
                 printErr: console.error,
+                locateFile: (file) => {
+                    // Serve WASM files from public directory
+                    return `/sqlite-wasm/${file}`;
+                }
             });
             console.log('SQLite wasm initialized:', sqlite3.version.libVersion);
             return sqlite3;
