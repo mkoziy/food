@@ -109,7 +109,7 @@
                     <i class="ti ti-check me-1"></i>
                     Apply Filters
                   </button>
-                  <button class="btn btn-outline-secondary" @click="resetFilters; showMobileFilters = false">
+                  <button class="btn btn-outline-secondary" @click="resetFilters(); showMobileFilters = false">
                     <i class="ti ti-refresh me-1"></i>
                     Reset All
                   </button>
