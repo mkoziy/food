@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -165,16 +166,19 @@ CREATE TABLE food (
 		if err != nil || !fat.Valid {
 			fat = sql.NullFloat64{Valid: true, Float64: 0}
 		}
+		fat = fixOcrIssues(fat)
 
 		protein, err := parseFloat(getColumn(record, colIndex, "proteins_100g"))
 		if err != nil || !protein.Valid {
 			protein = sql.NullFloat64{Valid: true, Float64: 0}
 		}
+		protein = fixOcrIssues(protein)
 
 		carbs, err := parseFloat(getColumn(record, colIndex, "carbohydrates_100g"))
 		if err != nil || !carbs.Valid {
 			carbs = sql.NullFloat64{Valid: true, Float64: 0}
 		}
+		carbs = fixOcrIssues(carbs)
 
 		energy, err := parseFloat(getColumn(record, colIndex, "energy-kcal_100g"))
 		if err != nil || !energy.Valid {
@@ -233,6 +237,15 @@ CREATE TABLE food (
 	log.Printf("Done!")
 
 	_ = ctx
+}
+
+// Can be more than 100 but should not. It means OCR errors. 10,3g was parsed as 103g
+func fixOcrIssues(n sql.NullFloat64) sql.NullFloat64 {
+	if n.Valid && n.Float64 > 100 {
+		return sql.NullFloat64{Float64: n.Float64 / 10.0, Valid: true}
+	}
+
+	return n
 }
 
 func createIndexes(db *sql.DB) error {
@@ -516,6 +529,9 @@ func parseFloat(s string) (sql.NullFloat64, error) {
 	if err != nil {
 		return sql.NullFloat64{Valid: false}, err
 	}
+
+	// Round to 2 decimal places
+	f = math.Round(f*100) / 100
 
 	return sql.NullFloat64{Float64: f, Valid: true}, nil
 }
