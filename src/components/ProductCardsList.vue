@@ -488,4 +488,122 @@ function splitJsonArrayFromString(arr) {
 .btn-ghost-primary:hover {
   background: rgba(32, 107, 196, 0.1);
 }
+
+/* Mobile Responsive Styles */
+@media (max-width: 767.98px) {
+  .card-img-top-custom {
+    height: 150px;
+  }
+
+  .card-title {
+    font-size: 0.9rem;
+  }
+
+  .values {
+    font-size: medium;
+  }
+
+  .card-body {
+    padding: 0.75rem;
+  }
+
+  .row.g-2 {
+    --bs-gutter-x: 0.5rem;
+    --bs-gutter-y: 0.5rem;
+  }
+
+  .badge {
+    font-size: 0.65rem;
+    padding: 0.2em 0.5em;
+  }
+
+  .placeholder-icon {
+    font-size: 2.5rem;
+  }
+
+  /* List view mobile adjustments */
+  .table th,
+  .table td {
+    padding: 0.5rem 0.25rem;
+    font-size: 0.8rem;
+  }
+
+  .list-image-container {
+    width: 32px;
+    height: 32px;
+  }
+
+  .product-name-cell {
+    max-width: 150px;
+  }
+
+  .product-name {
+    font-size: 0.85rem;
+  }
+
+  .product-badges .badge {
+    font-size: 0.6rem;
+  }
+
+  /* Hide some columns on very small screens */
+  .table th:nth-child(5),
+  .table td:nth-child(5),
+  .table th:nth-child(6),
+  .table td:nth-child(6) {
+    display: none;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .card-img-top-custom {
+    height: 120px;
+  }
+
+  .card-body {
+    padding: 0.5rem;
+  }
+
+  .card-title {
+    font-size: 0.85rem;
+    -webkit-line-clamp: 1;
+  }
+
+  .values {
+    font-size: 0.9rem;
+  }
+
+  small.text-muted {
+    font-size: 0.7rem;
+  }
+
+  .mb-3 {
+    margin-bottom: 0.5rem !important;
+  }
+
+  .mb-2 {
+    margin-bottom: 0.25rem !important;
+  }
+
+  /* Hide fat column on extra small screens */
+  .table th:nth-child(4),
+  .table td:nth-child(4) {
+    display: none;
+  }
+
+  .product-name-cell {
+    max-width: 120px;
+  }
+
+  .empty {
+    padding: 1.5rem;
+  }
+
+  .empty-icon {
+    font-size: 3rem;
+  }
+
+  .empty-title {
+    font-size: 1rem;
+  }
+}
 </style>

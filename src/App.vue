@@ -8,7 +8,8 @@
         <h1 class="navbar-brand navbar-brand-autodark d-none-navbar-horizontal pe-0 pe-md-3">
           <a href="#">
             <span class="navbar-brand-image"></span>
-            OpenFoodFacts Germany
+            <span class="d-none d-sm-inline">OpenFoodFacts Germany</span>
+            <span class="d-sm-none">OpenFoodFacts Germany</span>
           </a>
         </h1>
         <div class="navbar-nav flex-row order-md-last">
@@ -22,7 +23,8 @@
                 >
                   <i v-if="!loading" class="ti ti-download"></i>
                   <span v-if="loading" class="spinner-border spinner-border-sm me-2"></span>
-                  {{ loading ? loadingMessage : 'Load Database' }}
+                  <span class="d-none d-sm-inline">{{ loading ? loadingMessage : 'Load Database' }}</span>
+                  <span class="d-sm-none">{{ loading ? 'Loading...' : 'Load' }}</span>
                 </button>
                 <button
                     v-if="dbStats.count > 0"
@@ -31,7 +33,7 @@
                     :disabled="loading"
                 >
                   <i class="ti ti-trash"></i>
-                  Clear Data
+                  <span class="d-none d-sm-inline">Clear Data</span>
                 </button>
               </div>
             </div>
@@ -47,8 +49,81 @@
       <div class="page-body">
         <div class="container-xl">
           <div class="row">
-            <!-- Filters Sidebar -->
-            <div class="col-lg-3 mb-3">
+            <!-- Mobile Filter Toggle & Stats Bar -->
+            <div class="col-12 d-lg-none mb-3">
+              <div class="card">
+                <div class="card-body py-2">
+                  <div class="d-flex align-items-center justify-content-between">
+                    <button
+                        class="btn btn-primary"
+                        @click="showMobileFilters = true"
+                    >
+                      <i class="ti ti-filter me-1"></i>
+                      Filters
+                      <span v-if="activeFilterCount > 0" class="badge bg-white text-primary ms-1">
+                        {{ activeFilterCount }}
+                      </span>
+                    </button>
+                    <div class="d-flex align-items-center gap-3">
+                      <div class="text-center">
+                        <div class="text-muted small">Total</div>
+                        <div class="fw-bold">{{ dbStats.count.toLocaleString() }}</div>
+                      </div>
+                      <div class="text-center">
+                        <div class="text-muted small">Filtered</div>
+                        <div class="fw-bold">{{ totalCount.toLocaleString() }}</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Mobile Filters Offcanvas -->
+            <div
+                class="offcanvas offcanvas-start"
+                :class="{ show: showMobileFilters }"
+                tabindex="-1"
+                @click.self="showMobileFilters = false"
+            >
+              <div class="offcanvas-header">
+                <h5 class="offcanvas-title">
+                  <i class="ti ti-filter me-2"></i>
+                  Filters
+                </h5>
+                <button type="button" class="btn-close" @click="showMobileFilters = false"></button>
+              </div>
+              <div class="offcanvas-body">
+                <FilterBar
+                    :filters="filters"
+                    :sort="sort"
+                    :available-brands="availableBrands"
+                    :available-categories="availableCategories"
+                    :available-stores="availableStores"
+                    @update:filters="applyFilters"
+                    @update:sort="applySort"
+                    @reset="resetFilters"
+                />
+                <div class="d-grid gap-2 mt-3">
+                  <button class="btn btn-primary" @click="showMobileFilters = false">
+                    <i class="ti ti-check me-1"></i>
+                    Apply Filters
+                  </button>
+                  <button class="btn btn-outline-secondary" @click="resetFilters; showMobileFilters = false">
+                    <i class="ti ti-refresh me-1"></i>
+                    Reset All
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div
+                v-if="showMobileFilters"
+                class="offcanvas-backdrop fade show"
+                @click="showMobileFilters = false"
+            ></div>
+
+            <!-- Filters Sidebar (Desktop) -->
+            <div class="col-lg-3 mb-3 d-none d-lg-block">
               <div class="card sticky-top" style="top: 1rem;">
                 <div class="card-header">
                   <h3 class="card-title">
@@ -76,7 +151,7 @@
                 </div>
               </div>
 
-              <!-- Stats Cards -->
+              <!-- Stats Cards (Desktop) -->
               <div class="row row-cards mt-3">
                 <div class="col-12">
                   <div class="card">
@@ -100,14 +175,15 @@
             <!-- Products Main Content -->
             <div class="col-lg-9">
               <div class="card mb-3">
-                <div class="card-header">
-                  <h3 class="card-title">
-                    Products ({{ displayedProducts.length }} of {{ totalCount.toLocaleString() }})
+                <div class="card-header flex-column flex-sm-row">
+                  <h3 class="card-title mb-2 mb-sm-0">
+                    <span class="d-none d-sm-inline">Products ({{ displayedProducts.length }} of {{ totalCount.toLocaleString() }})</span>
+                    <span class="d-sm-none">{{ totalCount.toLocaleString() }} Products</span>
                   </h3>
-                  <div class="card-actions">
-                    <div class="d-flex align-items-center gap-2">
+                  <div class="card-actions w-100 w-sm-auto">
+                    <div class="d-flex align-items-center justify-content-between justify-content-sm-end gap-2 flex-wrap">
                       <!-- View Mode Toggle -->
-                      <div class="btn-group me-2">
+                      <div class="btn-group">
                         <button
                             class="btn btn-sm"
                             :class="viewMode === 'grid' ? 'btn-primary' : 'btn-outline-secondary'"
@@ -125,25 +201,28 @@
                           <i class="ti ti-list"></i>
                         </button>
                       </div>
-                      <button
-                          class="btn btn-outline-primary"
-                          @click="previousPage"
-                          :disabled="currentPage === 1"
-                      >
-                        <i class="ti ti-chevron-left"></i>
-                        Previous
-                      </button>
-                      <span class="text-muted">
-                        Page {{ currentPage }} of {{ totalPages }}
-                      </span>
-                      <button
-                          class="btn btn-outline-primary"
-                          @click="nextPage"
-                          :disabled="currentPage >= totalPages"
-                      >
-                        Next
-                        <i class="ti ti-chevron-right"></i>
-                      </button>
+                      <!-- Pagination -->
+                      <div class="d-flex align-items-center gap-1 gap-sm-2">
+                        <button
+                            class="btn btn-sm btn-outline-primary"
+                            @click="previousPage"
+                            :disabled="currentPage === 1"
+                        >
+                          <i class="ti ti-chevron-left"></i>
+                          <span class="d-none d-md-inline">Previous</span>
+                        </button>
+                        <span class="text-muted small">
+                          {{ currentPage }}/{{ totalPages }}
+                        </span>
+                        <button
+                            class="btn btn-sm btn-outline-primary"
+                            @click="nextPage"
+                            :disabled="currentPage >= totalPages"
+                        >
+                          <span class="d-none d-md-inline">Next</span>
+                          <i class="ti ti-chevron-right"></i>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -181,7 +260,7 @@
 </template>
 
 <script setup>
-import {ref, onMounted} from 'vue';
+import {ref, computed, onMounted} from 'vue';
 import {useDatabase} from './composables/useDatabase';
 import FilterBar from './components/FilterBar.vue';
 import LoadingState from './components/LoadingState.vue';
@@ -208,6 +287,7 @@ const STORAGE_KEY_SORT = 'food-app-sort';
 // State
 const displayedProducts = ref([]);
 const viewMode = ref('grid');
+const showMobileFilters = ref(false);
 const filters = ref({
   search: '',
   brands: [],
@@ -242,6 +322,21 @@ const itemsPerPage = 21;
 const availableBrands = ref([]);
 const availableCategories = ref([]);
 const availableStores = ref([]);
+
+// Computed
+const activeFilterCount = computed(() => {
+  let count = 0;
+  if (filters.value.search) count++;
+  if (filters.value.brands.length) count++;
+  if (filters.value.categories.length) count++;
+  if (filters.value.stores.length) count++;
+  if (filters.value.proteinMin || filters.value.proteinMax) count++;
+  if (filters.value.fatMin || filters.value.fatMax) count++;
+  if (filters.value.carbsMin || filters.value.carbsMax) count++;
+  if (filters.value.energyMin || filters.value.energyMax) count++;
+  if (sort.value.length) count++;
+  return count;
+});
 
 // Methods
 async function loadFilterOptions() {
@@ -399,5 +494,114 @@ onMounted(() => {
 
 .col-lg-3 .filter-section-body {
   overflow: visible !important;
+}
+
+/* Mobile Offcanvas Styles */
+.offcanvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 320px;
+  max-width: 85vw;
+  background: #fff;
+  z-index: 1050;
+  transform: translateX(-100%);
+  transition: transform 0.3s ease-in-out;
+  display: flex;
+  flex-direction: column;
+}
+
+.offcanvas.show {
+  transform: translateX(0);
+}
+
+.offcanvas-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem;
+  border-bottom: 1px solid rgba(98, 105, 118, 0.16);
+}
+
+.offcanvas-title {
+  margin: 0;
+  font-size: 1.125rem;
+}
+
+.offcanvas-body {
+  flex: 1;
+  padding: 1rem;
+  overflow-y: auto;
+}
+
+.offcanvas-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(24, 36, 51, 0.5);
+  z-index: 1040;
+}
+
+/* Mobile card header layout */
+@media (max-width: 575.98px) {
+  .card-header.flex-column {
+    align-items: stretch !important;
+  }
+
+  .card-header .card-actions {
+    margin-top: 0.5rem;
+  }
+
+  .w-sm-auto {
+    width: auto !important;
+  }
+
+  /* Smaller padding on mobile */
+  .card-body {
+    padding: 0.75rem;
+  }
+
+  .container-xl {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+
+  /* Fix navbar on mobile */
+  .navbar {
+    padding: 0.5rem 0;
+  }
+
+  .navbar-brand {
+    font-size: 1rem;
+  }
+
+  .btn-list {
+    gap: 0.25rem;
+  }
+}
+
+/* Tablet adjustments */
+@media (max-width: 991.98px) {
+  .page-body {
+    padding-top: 0.5rem;
+  }
+}
+
+/* Ensure offcanvas dropdowns work */
+.offcanvas .multiselect__content-wrapper {
+  position: relative !important;
+  z-index: 1 !important;
+}
+
+.offcanvas .filter-section {
+  overflow: visible !important;
+}
+
+/* Hide body scroll when offcanvas is open */
+body.offcanvas-open {
+  overflow: hidden;
 }
 </style>
