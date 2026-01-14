@@ -106,6 +106,25 @@
                   </h3>
                   <div class="card-actions">
                     <div class="d-flex align-items-center gap-2">
+                      <!-- View Mode Toggle -->
+                      <div class="btn-group me-2">
+                        <button
+                            class="btn btn-sm"
+                            :class="viewMode === 'grid' ? 'btn-primary' : 'btn-outline-secondary'"
+                            @click="viewMode = 'grid'"
+                            title="Grid View"
+                        >
+                          <i class="ti ti-grid-dots"></i>
+                        </button>
+                        <button
+                            class="btn btn-sm"
+                            :class="viewMode === 'list' ? 'btn-primary' : 'btn-outline-secondary'"
+                            @click="viewMode = 'list'"
+                            title="List View"
+                        >
+                          <i class="ti ti-list"></i>
+                        </button>
+                      </div>
                       <button
                           class="btn btn-outline-primary"
                           @click="previousPage"
@@ -129,7 +148,7 @@
                   </div>
                 </div>
                 <div class="card-body">
-                  <ProductCardsList :products="displayedProducts"/>
+                  <ProductCardsList :products="displayedProducts" :view-mode="viewMode"/>
                 </div>
               </div>
             </div>
@@ -188,11 +207,20 @@ const STORAGE_KEY_SORT = 'food-app-sort';
 
 // State
 const displayedProducts = ref([]);
+const viewMode = ref('grid');
 const filters = ref({
   search: '',
   brands: [],
   categories: [],
   stores: [],
+  proteinMin: '',
+  proteinMax: '',
+  fatMin: '',
+  fatMax: '',
+  carbsMin: '',
+  carbsMax: '',
+  energyMin: '',
+  energyMax: '',
 });
 
 // Load saved sort from localStorage
@@ -261,7 +289,15 @@ function resetFilters() {
     search: '',
     brands: [],
     categories: [],
-    stores: []
+    stores: [],
+    proteinMin: '',
+    proteinMax: '',
+    fatMin: '',
+    fatMax: '',
+    carbsMin: '',
+    carbsMax: '',
+    energyMin: '',
+    energyMax: '',
   };
   sort.value = [];
   // Clear saved sort from localStorage
@@ -338,5 +374,30 @@ onMounted(() => {
 <style>
 #app {
   min-height: 100vh;
+}
+
+/* Fix multiselect dropdown visibility in sidebar */
+.col-lg-3 .card,
+.col-lg-3 .card.sticky-top {
+  overflow: visible !important;
+}
+
+.col-lg-3 .card-body {
+  overflow: visible !important;
+}
+
+/* Ensure sidebar and dropdowns appear above other content */
+.col-lg-3 {
+  position: relative;
+  z-index: 100;
+}
+
+/* Ensure filter sections don't clip dropdowns */
+.col-lg-3 .filter-section {
+  overflow: visible !important;
+}
+
+.col-lg-3 .filter-section-body {
+  overflow: visible !important;
 }
 </style>

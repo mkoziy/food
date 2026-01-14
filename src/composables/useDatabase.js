@@ -20,8 +20,29 @@ export function useDatabase() {
         if (sqlite3) return sqlite3;
 
         try {
-            // Dynamically import SQLite module from public directory
-            const sqlite3InitModule = await import('/sqlite-wasm/sqlite3.mjs').then(m => m.default);
+            // Load SQLite module via script tag injection (Vite 5 compatible)
+            const sqlite3InitModule = await new Promise((resolve, reject) => {
+                // Check if already loaded
+                if (window.sqlite3InitModule) {
+                    resolve(window.sqlite3InitModule);
+                    return;
+                }
+
+                const script = document.createElement('script');
+                script.type = 'module';
+                script.textContent = `
+                    import sqlite3InitModule from '/sqlite-wasm/sqlite3.mjs';
+                    window.sqlite3InitModule = sqlite3InitModule;
+                    window.dispatchEvent(new Event('sqlite3-loaded'));
+                `;
+
+                window.addEventListener('sqlite3-loaded', () => {
+                    resolve(window.sqlite3InitModule);
+                }, { once: true });
+
+                script.onerror = reject;
+                document.head.appendChild(script);
+            });
 
             sqlite3 = await sqlite3InitModule({
                 print: console.log,
@@ -303,6 +324,40 @@ export function useDatabase() {
                     SELECT food_id FROM store_food
                     WHERE store_id IN (${storePlaceholders})
                 )`);
+            }
+
+            // Nutrition range filters
+            if (filters.proteinMin !== undefined && filters.proteinMin !== null && filters.proteinMin !== '') {
+                whereConditions.push('f.protein >= :proteinMin');
+                params[':proteinMin'] = Number(filters.proteinMin);
+            }
+            if (filters.proteinMax !== undefined && filters.proteinMax !== null && filters.proteinMax !== '') {
+                whereConditions.push('f.protein <= :proteinMax');
+                params[':proteinMax'] = Number(filters.proteinMax);
+            }
+            if (filters.fatMin !== undefined && filters.fatMin !== null && filters.fatMin !== '') {
+                whereConditions.push('f.fat >= :fatMin');
+                params[':fatMin'] = Number(filters.fatMin);
+            }
+            if (filters.fatMax !== undefined && filters.fatMax !== null && filters.fatMax !== '') {
+                whereConditions.push('f.fat <= :fatMax');
+                params[':fatMax'] = Number(filters.fatMax);
+            }
+            if (filters.carbsMin !== undefined && filters.carbsMin !== null && filters.carbsMin !== '') {
+                whereConditions.push('f.carbs >= :carbsMin');
+                params[':carbsMin'] = Number(filters.carbsMin);
+            }
+            if (filters.carbsMax !== undefined && filters.carbsMax !== null && filters.carbsMax !== '') {
+                whereConditions.push('f.carbs <= :carbsMax');
+                params[':carbsMax'] = Number(filters.carbsMax);
+            }
+            if (filters.energyMin !== undefined && filters.energyMin !== null && filters.energyMin !== '') {
+                whereConditions.push('f.energy >= :energyMin');
+                params[':energyMin'] = Number(filters.energyMin);
+            }
+            if (filters.energyMax !== undefined && filters.energyMax !== null && filters.energyMax !== '') {
+                whereConditions.push('f.energy <= :energyMax');
+                params[':energyMax'] = Number(filters.energyMax);
             }
 
             const whereClause = whereConditions.length > 0

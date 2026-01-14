@@ -19,7 +19,7 @@ if (!existsSync(publicSqlitePath)) {
     }
 });
 
-// Plugin to serve WASM files with correct MIME type
+// Plugin to serve WASM files with correct MIME type and allow public JS imports
 const wasmContentTypePlugin = {
     name: 'wasm-content-type-plugin',
     configureServer(server) {
@@ -40,15 +40,33 @@ const wasmContentTypePlugin = {
     }
 };
 
+// Plugin to allow importing JS files from public directory
+const allowPublicJsImportPlugin = {
+    name: 'allow-public-js-import',
+    enforce: 'pre',
+    resolveId(source) {
+        if (source.startsWith('/sqlite-wasm/') && (source.endsWith('.mjs') || source.endsWith('.js'))) {
+            return { id: source, external: true };
+        }
+        return null;
+    }
+};
+
 export default defineConfig({
-    plugins: [vue(), wasmContentTypePlugin],
+    plugins: [vue(), wasmContentTypePlugin, allowPublicJsImportPlugin],
     root: 'src',
+    optimizeDeps: {
+        exclude: ['@sqlite.org/sqlite-wasm']
+    },
     server: {
         port: 3000,
         open: true,
         headers: {
             "Cross-Origin-Opener-Policy": "same-origin",
             "Cross-Origin-Embedder-Policy": "require-corp",
+        },
+        fs: {
+            allow: ['..']
         }
     },
     preview: {

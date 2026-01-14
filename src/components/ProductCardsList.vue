@@ -8,20 +8,117 @@
       <p class="empty-subtitle text-muted">Try adjusting your filters</p>
     </div>
 
+    <!-- List View -->
+    <div v-else-if="viewMode === 'list'" class="table-responsive">
+      <table class="table table-hover table-vcenter">
+        <thead>
+          <tr>
+            <th style="width: 50px;"></th>
+            <th>Name</th>
+            <th class="text-end" style="width: 90px;">Protein</th>
+            <th class="text-end" style="width: 90px;">Fat</th>
+            <th class="text-end" style="width: 90px;">Carbs</th>
+            <th class="text-end" style="width: 90px;">Energy</th>
+            <th class="text-end" style="width: 90px;">P/F Index</th>
+            <th style="width: 60px;"></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="product in products" :key="product.id">
+            <td>
+              <div class="list-image-container">
+                <div v-if="product.image_url" class="image-wrapper">
+                  <div class="image-spinner" :data-id="'list-spinner-' + product.id">
+                    <span class="spinner-border spinner-border-sm"></span>
+                  </div>
+                  <img
+                      :src="product.image_url"
+                      :alt="product.name"
+                      loading="lazy"
+                      crossorigin="anonymous"
+                      class="list-image"
+                      @load="handleImageLoad($event, 'list-spinner-' + product.id)"
+                      @error="handleImageError($event, 'list-spinner-' + product.id)"
+                  />
+                </div>
+                <div v-else class="list-placeholder">
+                  <i class="ti ti-photo-off"></i>
+                </div>
+              </div>
+            </td>
+            <td>
+              <div class="product-name-cell">
+                <span class="product-name">{{ product.name || 'Unknown Product' }}</span>
+                <div v-if="product.brands" class="product-badges mt-1">
+                  <span
+                      v-for="(brand, idx) in splitJsonArrayFromString(product.brands).slice(0, 2)"
+                      :key="idx"
+                      class="badge bg-blue-lt me-1"
+                  >
+                    {{ brand }}
+                  </span>
+                </div>
+              </div>
+            </td>
+            <td class="text-end">
+              <strong v-if="product.protein" class="text-body">{{ product.protein }}g</strong>
+              <span v-else class="text-muted">-</span>
+            </td>
+            <td class="text-end">
+              <strong v-if="product.fat" class="text-body">{{ product.fat }}g</strong>
+              <span v-else class="text-muted">-</span>
+            </td>
+            <td class="text-end">
+              <strong v-if="product.carbs" class="text-body">{{ product.carbs }}g</strong>
+              <span v-else class="text-muted">-</span>
+            </td>
+            <td class="text-end">
+              <strong v-if="product.energy" class="text-body">{{ Math.round(product.energy) }}</strong>
+              <span v-else class="text-muted">-</span>
+            </td>
+            <td class="text-end">
+              <strong v-if="product.protein_fat_index" class="text-body">
+                {{ Number(product.protein_fat_index).toFixed(2) }}
+              </strong>
+              <span v-else class="text-muted">-</span>
+            </td>
+            <td>
+              <a
+                  v-if="product.url"
+                  :href="product.url"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="btn btn-sm btn-ghost-primary"
+              >
+                <i class="ti ti-external-link"></i>
+              </a>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Grid View (default) -->
     <div v-else class="row row-cards">
       <div v-for="product in products" :key="product.id" class="col-12 col-md-6 col-lg-4">
         <div class="card">
           <!-- Product Image -->
           <div class="card-img-top img-responsive img-responsive-21x9 card-img-top-custom">
-            <img loading="lazy"
-              v-if="product.image_url"
-              :src="product.image_url"
-              :alt="product.name"
-              crossorigin="anonymous"
-              class="product-image"
-              @error="handleImageError"
-            />
-            <div class="placeholder-icon" :style="{display: product.image_url ? 'none' : 'flex'}">
+            <div v-if="product.image_url" class="image-wrapper-grid">
+              <div class="image-spinner-grid" :data-id="'grid-spinner-' + product.id">
+                <span class="spinner-border text-primary"></span>
+              </div>
+              <img
+                  :src="product.image_url"
+                  :alt="product.name"
+                  loading="lazy"
+                  crossorigin="anonymous"
+                  class="product-image"
+                  @load="handleImageLoad($event, 'grid-spinner-' + product.id)"
+                  @error="handleImageError($event, 'grid-spinner-' + product.id)"
+              />
+            </div>
+            <div v-else class="placeholder-icon">
               <i class="ti ti-photo-off"></i>
             </div>
           </div>
@@ -149,15 +246,37 @@ const props = defineProps({
   products: {
     type: Array,
     default: () => []
+  },
+  viewMode: {
+    type: String,
+    default: 'grid',
+    validator: (value) => ['grid', 'list'].includes(value)
   }
 });
 
-function handleImageError(event) {
-  // Hide broken image and show placeholder
+function handleImageLoad(event, spinnerId) {
+  // Hide spinner when image loads
+  const spinner = document.querySelector(`[data-id="${spinnerId}"]`);
+  if (spinner) {
+    spinner.style.display = 'none';
+  }
+}
+
+function handleImageError(event, spinnerId) {
+  // Hide spinner on error
+  const spinner = document.querySelector(`[data-id="${spinnerId}"]`);
+  if (spinner) {
+    spinner.style.display = 'none';
+  }
+  // Hide broken image
   event.target.style.display = 'none';
-  const placeholder = event.target.nextElementSibling;
-  if (placeholder) {
-    placeholder.style.display = 'flex';
+  // Show placeholder if parent has one
+  const parent = event.target.closest('.image-wrapper-grid') || event.target.closest('.image-wrapper');
+  if (parent) {
+    const placeholder = document.createElement('div');
+    placeholder.className = 'placeholder-icon';
+    placeholder.innerHTML = '<i class="ti ti-photo-off"></i>';
+    parent.appendChild(placeholder);
   }
 }
 
@@ -236,6 +355,22 @@ function splitJsonArrayFromString(arr) {
   justify-content: center;
 }
 
+.image-wrapper-grid {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+
+.image-spinner-grid {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1;
+}
+
 .product-image {
   width: 100%;
   height: 100%;
@@ -279,5 +414,78 @@ function splitJsonArrayFromString(arr) {
 
 .gap-1 {
   gap: 0.25rem;
+}
+
+/* List view styles */
+.list-image-container {
+  width: 40px;
+  height: 40px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: #f8f9fa;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.image-wrapper {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+.image-spinner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1;
+}
+
+.list-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.list-placeholder {
+  color: #cbd5e1;
+  font-size: 1.25rem;
+}
+
+.product-name-cell {
+  max-width: 300px;
+}
+
+.product-name {
+  font-weight: 500;
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.product-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.product-badges .badge {
+  font-size: 0.7rem;
+}
+
+.table-vcenter td {
+  vertical-align: middle;
+}
+
+.btn-ghost-primary {
+  color: var(--tblr-primary);
+  background: transparent;
+  border: none;
+}
+
+.btn-ghost-primary:hover {
+  background: rgba(32, 107, 196, 0.1);
 }
 </style>
