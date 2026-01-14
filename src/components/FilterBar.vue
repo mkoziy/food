@@ -388,10 +388,10 @@ const localFilters = ref({
 const collapsed = ref({
   quickFilters: false,
   nutrition: false,
-  brands: false,
-  categories: false,
-  stores: false,
-  sorting: false
+  brands: true,
+  categories: true,
+  stores: true,
+  sorting: true
 });
 
 // Sort state
