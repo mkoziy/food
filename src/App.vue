@@ -8,8 +8,7 @@
         <h1 class="navbar-brand navbar-brand-autodark d-none-navbar-horizontal pe-0 pe-md-3">
           <a href="#">
             <span class="navbar-brand-image"></span>
-            <span class="d-none d-sm-inline">OpenFoodFacts Germany</span>
-            <span class="d-sm-none">OpenFoodFacts Germany</span>
+            Food Facts Explorer - Nutrition & Ingredients
           </a>
         </h1>
         <div class="navbar-nav flex-row order-md-last">
@@ -48,6 +47,12 @@
       <!-- Page body -->
       <div class="page-body">
         <div class="container-xl">
+          <!-- SEO-optimized heading -->
+          <div class="row mb-3" v-if="dbStats.count > 0">
+            <div class="col-12">
+              <h2 class="visually-hidden">Search Food Products Database - Nutrition Facts, Ingredients & Allergens</h2>
+            </div>
+          </div>
           <div class="row">
             <!-- Mobile Filter Toggle & Stats Bar -->
             <div class="col-12 d-lg-none mb-3">
