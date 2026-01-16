@@ -274,8 +274,16 @@
 </template>
 
 <script setup>
-import {ref, computed, onMounted} from 'vue';
+import {ref, computed, onMounted, onUnmounted, watch} from 'vue';
 import {useDatabase} from './composables/useDatabase';
+import {
+  hasUrlParams,
+  parseUrlParams,
+  updateUrl,
+  setupHistoryListener,
+  resolveIdsToObjects,
+  clearUrlParams
+} from './composables/useUrlState';
 import FilterBar from './components/FilterBar.vue';
 import LoadingState from './components/LoadingState.vue';
 import ProductCardsList from "./components/ProductCardsList.vue";
@@ -358,6 +366,10 @@ const availableBrands = ref([]);
 const availableCategories = ref([]);
 const availableStores = ref([]);
 
+// URL state management
+let pendingUrlState = null;
+let cleanupHistoryListener = null;
+
 // Computed
 const activeFilterCount = computed(() => {
   let count = 0;
@@ -380,7 +392,7 @@ async function loadFilterOptions() {
   availableStores.value = await getUniqueStores();
 }
 
-async function applyFilters(newFilters) {
+async function applyFilters(newFilters, skipUrlUpdate = false) {
   if (newFilters) {
     filters.value = {...newFilters};
   }
@@ -388,9 +400,14 @@ async function applyFilters(newFilters) {
   // Reset to first page when filters change
   currentPage.value = 1;
   await loadProducts();
+
+  // Update URL with current state
+  if (!skipUrlUpdate) {
+    updateUrl(getCurrentState(), true);
+  }
 }
 
-async function applySort(newSort) {
+async function applySort(newSort, skipUrlUpdate = false) {
   if (newSort) {
     sort.value = [...newSort];
     // Save sort to localStorage
@@ -404,6 +421,11 @@ async function applySort(newSort) {
   // Reset to first page when sort changes
   currentPage.value = 1;
   await loadProducts();
+
+  // Update URL with current state
+  if (!skipUrlUpdate) {
+    updateUrl(getCurrentState(), true);
+  }
 }
 
 async function loadProducts() {
@@ -423,6 +445,7 @@ async function changePageSize(newSize) {
     console.error('Error saving page size:', error);
   }
   await loadProducts();
+  updateUrl(getCurrentState(), true);
 }
 
 function resetFilters() {
@@ -447,13 +470,16 @@ function resetFilters() {
   } catch (error) {
     console.error('Error clearing saved sort:', error);
   }
-  applyFilters();
+  // Clear URL params
+  clearUrlParams();
+  applyFilters(null, true); // Skip URL update since we already cleared
 }
 
 async function nextPage() {
   if (currentPage.value < totalPages.value) {
     currentPage.value++;
     await loadProducts();
+    updateUrl(getCurrentState(), false); // pushState for back button
   }
 }
 
@@ -461,6 +487,7 @@ async function previousPage() {
   if (currentPage.value > 1) {
     currentPage.value--;
     await loadProducts();
+    updateUrl(getCurrentState(), false); // pushState for back button
   }
 }
 
@@ -482,10 +509,103 @@ async function handleClearDatabase() {
     totalPages.value = 1;
     availableBrands.value = [];
     availableCategories.value = [];
+    clearUrlParams();
   }
 }
 
+/**
+ * Get current app state for URL serialization
+ */
+function getCurrentState() {
+  return {
+    filters: filters.value,
+    sort: sort.value,
+    page: currentPage.value,
+    pageSize: itemsPerPage.value,
+    viewMode: viewMode.value
+  };
+}
+
+/**
+ * Apply parsed URL state to app after filter options are loaded
+ */
+function applyUrlState(urlState) {
+  // Resolve IDs to full objects
+  if (urlState.brandIds) {
+    filters.value.brands = resolveIdsToObjects(urlState.brandIds, availableBrands.value);
+  }
+  if (urlState.categoryIds) {
+    filters.value.categories = resolveIdsToObjects(urlState.categoryIds, availableCategories.value);
+  }
+  if (urlState.storeIds) {
+    filters.value.stores = resolveIdsToObjects(urlState.storeIds, availableStores.value);
+  }
+
+  // Apply simple values
+  if (urlState.search !== undefined) {
+    filters.value.search = urlState.search;
+  }
+  if (urlState.proteinMin !== undefined && urlState.proteinMin !== '') {
+    filters.value.proteinMin = urlState.proteinMin;
+  }
+  if (urlState.proteinMax !== undefined && urlState.proteinMax !== '') {
+    filters.value.proteinMax = urlState.proteinMax;
+  }
+  if (urlState.fatMin !== undefined && urlState.fatMin !== '') {
+    filters.value.fatMin = urlState.fatMin;
+  }
+  if (urlState.fatMax !== undefined && urlState.fatMax !== '') {
+    filters.value.fatMax = urlState.fatMax;
+  }
+  if (urlState.carbsMin !== undefined && urlState.carbsMin !== '') {
+    filters.value.carbsMin = urlState.carbsMin;
+  }
+  if (urlState.carbsMax !== undefined && urlState.carbsMax !== '') {
+    filters.value.carbsMax = urlState.carbsMax;
+  }
+  if (urlState.energyMin !== undefined && urlState.energyMin !== '') {
+    filters.value.energyMin = urlState.energyMin;
+  }
+  if (urlState.energyMax !== undefined && urlState.energyMax !== '') {
+    filters.value.energyMax = urlState.energyMax;
+  }
+
+  // Apply sort
+  if (urlState.sort && urlState.sort.length > 0) {
+    sort.value = urlState.sort;
+  }
+
+  // Apply pagination
+  if (urlState.page) {
+    currentPage.value = urlState.page;
+  }
+  if (urlState.pageSize && pageSizeOptions.includes(urlState.pageSize)) {
+    itemsPerPage.value = urlState.pageSize;
+  }
+
+  // Apply view mode
+  if (urlState.viewMode) {
+    viewMode.value = urlState.viewMode;
+  }
+}
+
+/**
+ * Handle browser back/forward navigation
+ */
+async function handleHistoryNavigation(urlState) {
+  // Apply the URL state
+  applyUrlState(urlState);
+
+  // Reload products with new state
+  await loadProducts();
+}
+
 async function initializeApp() {
+  // Parse URL params first (get IDs before DB loads)
+  if (hasUrlParams()) {
+    pendingUrlState = parseUrlParams();
+  }
+
   await updateStats();
 
   // If no data in memory, check cache and auto-load
@@ -494,7 +614,15 @@ async function initializeApp() {
       // Try to load from cache automatically
       await loadData();
       await loadFilterOptions();
-      await applyFilters();
+
+      // Apply URL state if present, after filter options are loaded
+      if (pendingUrlState) {
+        applyUrlState(pendingUrlState);
+        pendingUrlState = null;
+        await loadProducts();
+      } else {
+        await applyFilters(null, true); // Skip URL update on initial load
+      }
     } catch (error) {
       // Cache doesn't exist or error loading - user needs to click "Load Database"
       console.log('No cached database found, waiting for user to load');
@@ -502,13 +630,33 @@ async function initializeApp() {
   } else {
     // Data already in memory, just load UI
     await loadFilterOptions();
+
+    // Apply URL state if present
+    if (pendingUrlState) {
+      applyUrlState(pendingUrlState);
+      pendingUrlState = null;
+    }
     await loadProducts();
   }
+
+  // Set up history listener for back/forward navigation
+  cleanupHistoryListener = setupHistoryListener(handleHistoryNavigation);
 }
+
+// Watch viewMode to update URL
+watch(viewMode, () => {
+  updateUrl(getCurrentState(), true);
+});
 
 // Lifecycle
 onMounted(() => {
   initializeApp();
+});
+
+onUnmounted(() => {
+  if (cleanupHistoryListener) {
+    cleanupHistoryListener();
+  }
 });
 </script>
 
