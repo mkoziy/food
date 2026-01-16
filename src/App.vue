@@ -201,6 +201,20 @@
                           <i class="ti ti-list"></i>
                         </button>
                       </div>
+                      <!-- Page Size -->
+                      <div class="d-flex align-items-center gap-1">
+                        <select
+                            class="form-select form-select-sm"
+                            :value="itemsPerPage"
+                            @change="changePageSize(Number($event.target.value))"
+                            style="width: auto;"
+                        >
+                          <option v-for="size in pageSizeOptions" :key="size" :value="size">
+                            {{ size }}
+                          </option>
+                        </select>
+                        <span class="text-muted small d-none d-sm-inline">per page</span>
+                      </div>
                       <!-- Pagination -->
                       <div class="d-flex align-items-center gap-1 gap-sm-2">
                         <button
@@ -283,6 +297,10 @@ const {
 
 // LocalStorage keys
 const STORAGE_KEY_SORT = 'food-app-sort';
+const STORAGE_KEY_PAGE_SIZE = 'food-app-page-size';
+
+// Page size options
+const pageSizeOptions = [20, 50, 100, 200];
 
 // State
 const displayedProducts = ref([]);
@@ -314,11 +332,28 @@ function loadSavedSort() {
   }
 }
 
+// Load saved page size from localStorage
+function loadSavedPageSize() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY_PAGE_SIZE);
+    if (saved) {
+      const size = parseInt(saved, 10);
+      if (pageSizeOptions.includes(size)) {
+        return size;
+      }
+    }
+    return 50; // Default
+  } catch (error) {
+    console.error('Error loading saved page size:', error);
+    return 50;
+  }
+}
+
 const sort = ref(loadSavedSort());
 const currentPage = ref(1);
 const totalPages = ref(0);
 const totalCount = ref(0);
-const itemsPerPage = 21;
+const itemsPerPage = ref(loadSavedPageSize());
 const availableBrands = ref([]);
 const availableCategories = ref([]);
 const availableStores = ref([]);
@@ -372,11 +407,22 @@ async function applySort(newSort) {
 }
 
 async function loadProducts() {
-  const result = await queryProducts(filters.value, currentPage.value, itemsPerPage, sort.value);
+  const result = await queryProducts(filters.value, currentPage.value, itemsPerPage.value, sort.value);
 
   displayedProducts.value = result.products;
   totalCount.value = result.totalCount;
   totalPages.value = result.totalPages;
+}
+
+async function changePageSize(newSize) {
+  itemsPerPage.value = newSize;
+  currentPage.value = 1; // Reset to first page
+  try {
+    localStorage.setItem(STORAGE_KEY_PAGE_SIZE, String(newSize));
+  } catch (error) {
+    console.error('Error saving page size:', error);
+  }
+  await loadProducts();
 }
 
 function resetFilters() {
